@@ -18,6 +18,8 @@
 using std::string;
 using ycsbc::CoreWorkload;
 
+static const size_t InitTxnKeyThreadNum = 32;
+
 const string CoreWorkload::TABLENAME_PROPERTY = "table";
 const string CoreWorkload::TABLENAME_DEFAULT = "usertable";
 
@@ -172,6 +174,22 @@ void CoreWorkload::Init(const utils::Properties &p) {
   } else {
     throw utils::Exception("Distribution not allowed for scan length: " +
                            scan_len_dist);
+  }
+
+  size_t op_num = std::stoi(p.GetProperty(OPERATION_COUNT_PROPERTY));
+  txn_keys.resize(op_num);
+  std::vector<std::thread> txn_key_init_threads;
+  auto init_function = [this, op_num = op_num, threads_num = InitTxnKeyThreadNum, &txn_keys = txn_keys](size_t tid) {
+    size_t op_step = op_num / threads_num;
+    for (size_t i = tid * op_step; i < (tid + 1) * op_step; i++) {
+      txn_keys[i] = BuildKeyName(key_chooser_->Next());
+    }
+  };
+  for (size_t tid = 0; tid < InitTxnKeyThreadNum; tid++) {
+    txn_key_init_threads.push_back(std::thread(std::bind(init_function, tid)));
+  }
+  for (size_t tid = 0; tid < InitTxnKeyThreadNum; tid++) {
+    txn_key_init_threads[tid].join();
   }
 }
 

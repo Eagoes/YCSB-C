@@ -21,7 +21,7 @@ for file_name in $workload_dir/workload*.spec; do
     for db_name in ${db_names[@]}; do
       for ((i=1; i<=repeat_num; ++i)); do
         echo "Running $db_name with $tn threads for $file_name"
-        ./ycsbc -db $db_name -threads $tn -P $file_name 2>>ycsbc.output &
+        numactl --cpunodebind=0 --membind=0 ./ycsbc -db $db_name -threads $tn -P $file_name 2>>ycsbc.output &
         wait
       done
     done

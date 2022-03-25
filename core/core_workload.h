@@ -9,7 +9,9 @@
 #ifndef YCSB_C_CORE_WORKLOAD_H_
 #define YCSB_C_CORE_WORKLOAD_H_
 
+#include <atomic>
 #include <string>
+#include <thread>
 #include <vector>
 #include "counter_generator.h"
 #include "db.h"
@@ -165,7 +167,8 @@ class CoreWorkload {
         scan_len_chooser_(NULL),
         insert_key_sequence_(3),
         ordered_inserts_(true),
-        record_count_(0) {}
+        record_count_(0),
+        current_txn_index(0) {}
 
   virtual ~CoreWorkload() {
     if (field_len_generator_) delete field_len_generator_;
@@ -192,6 +195,10 @@ class CoreWorkload {
   CounterGenerator insert_key_sequence_;
   bool ordered_inserts_;
   size_t record_count_;
+
+  // prefill transaction keys.
+  std::atomic<size_t> current_txn_index;
+  std::vector<std::string> txn_keys;
 };
 
 inline std::string CoreWorkload::NextSequenceKey() {
@@ -200,9 +207,10 @@ inline std::string CoreWorkload::NextSequenceKey() {
 }
 
 inline std::string CoreWorkload::NextTransactionKey() {
-  uint64_t key_num;
-  key_num = key_chooser_->Next();
-  return BuildKeyName(key_num);
+  // uint64_t key_num;
+  // key_num = key_chooser_->Next();
+  // return BuildKeyName(key_num);
+  return txn_keys[current_txn_index++];
 }
 
 inline std::vector<std::string> CoreWorkload::NextTransactionMultiKey(int len) {
